@@ -59,7 +59,7 @@ fun App() {
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
         image = it
-        status = if (it == null) "Fotoğraf seçilmedi." else "Fotoğraf seçildi."
+        status = if (it == null) "Fotoğraf seçilmedi." else "Fotoğraf seçildi. Otomatik ilan hazırlığı başlıyor."
     }
 
     val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
@@ -101,6 +101,37 @@ fun App() {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_PROMPT, "Komutunuzu söyleyin")
         })
+    }
+
+    LaunchedEffect(image) {
+        val selected = image ?: return@LaunchedEffect
+        if (busy) return@LaunchedEffect
+
+        busy = true
+        status = "Fotoğraf analiz ediliyor, fiyat araştırılıyor ve ilan hazırlanıyor..."
+        try {
+            val result = createListingDraft(context, selected)
+            val draftTitle = result.optString("title")
+            val draftDescription = result.optString("description")
+            val draftPrice = result.optString("price")
+
+            title = draftTitle
+            description = draftDescription
+            price = draftPrice
+
+            if (draftTitle.isNotBlank() && draftDescription.isNotBlank() && draftPrice.isNotBlank()) {
+                AutomationBus.startListing(
+                    ListingData(draftTitle, draftDescription, draftPrice, selected)
+                )
+                status = "İlan hazır. Sahibinden otomasyonu başlatıldı."
+            } else {
+                status = "Taslak hazırlandı ancak bazı alanlar eksik."
+            }
+        } catch (e: Exception) {
+            status = "Hata: " + (e.message ?: "İlan hazırlanamadı.")
+        } finally {
+            busy = false
+        }
     }
 
     MaterialTheme {
@@ -148,27 +179,31 @@ fun App() {
                     OutlinedTextField(price, { price = it }, label = { Text("Önerilen fiyat") }, modifier = Modifier.fillMaxWidth())
                 }
                 item {
-                    Button(
+                    OutlinedButton(
                         onClick = {
-                            val selected = image ?: return@Button
-                            busy = true
-                            status = "Fotoğraf analiz ediliyor ve piyasa araştırılıyor..."
-                            scope.launch {
-                                try {
-                                    val result = createListingDraft(context, selected)
-                                    title = result.optString("title", title)
-                                    description = result.optString("description", description)
-                                    price = result.optString("price", price)
-                                    status = "Taslak hazır. Sahibinden'e otomasyon için hazır."
-                                } catch (e: Exception) {
-                                    status = "Hata: " + (e.message ?: "Sunucuya ulaşılamadı.")
-                                } finally { busy = false }
+                            image?.let { selected ->
+                                busy = true
+                                status = "İlan yeniden hazırlanıyor..."
+                                scope.launch {
+                                    try {
+                                        val result = createListingDraft(context, selected)
+                                        title = result.optString("title", title)
+                                        description = result.optString("description", description)
+                                        price = result.optString("price", price)
+                                        AutomationBus.startListing(
+                                            ListingData(title, description, price, selected)
+                                        )
+                                        status = "İlan yenilendi. Sahibinden otomasyonu başlatıldı."
+                                    } catch (e: Exception) {
+                                        status = "Hata: " + (e.message ?: "Sunucuya ulaşılamadı.")
+                                    } finally { busy = false }
+                                }
                             }
                         },
                         Modifier.fillMaxWidth(),
                         enabled = image != null && !busy
                     ) {
-                        Text(if (busy) "Hazırlanıyor..." else "İlanı hazırla")
+                        Text("İlanı yeniden hazırla")
                     }
                 }
                 item {
