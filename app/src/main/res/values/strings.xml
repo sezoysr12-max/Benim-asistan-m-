@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Benim Asistanım</string>
+    <string name="accessibility_description">Benim Asistanım, kullanıcının verdiği komutla izin verilen uygulamalarda ekran üzerindeki alanlara dokunma ve metin girme işlemlerini otomatikleştirir.</string>
+</resources>
