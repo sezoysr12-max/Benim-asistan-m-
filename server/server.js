@@ -41,4 +41,6 @@ app.post("/api/listing/draft", async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 3000, () => console.log("Benim Asistanım sunucusu hazır."));
+app.listen(process.env.PORT || 3000, "0.0.0.0", () =>
+  console.log("Benim Asistanım sunucusu hazır.")
+);
