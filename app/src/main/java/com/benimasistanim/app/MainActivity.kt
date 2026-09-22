@@ -1,5 +1,6 @@
 package com.benimasistanim.app
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Bundle
@@ -13,6 +14,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +46,7 @@ fun App() {
     var status by remember { mutableStateOf("Ürün fotoğrafını seç ve ilanı hazırlat.") }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) {
         image = it
         status = if (it == null) "Fotoğraf seçilmedi." else "Fotoğraf seçildi. İlanı hazırlaya bas."
@@ -86,7 +89,7 @@ fun App() {
                             status = "Fotoğraf analiz ediliyor ve piyasa araştırılıyor..."
                             scope.launch {
                                 try {
-                                    val result = createListingDraft(selected)
+                                    val result = createListingDraft(context, selected)
                                     title = result.optString("title", title)
                                     description = result.optString("description", description)
                                     price = result.optString("price", price)
@@ -117,8 +120,8 @@ fun App() {
     }
 }
 
-private suspend fun createListingDraft(uri: Uri): JSONObject = withContext(Dispatchers.IO) {
-    val bitmap = contentResolver.openInputStream(uri).use { input ->
+private suspend fun createListingDraft(context: Context, uri: Uri): JSONObject = withContext(Dispatchers.IO) {
+    val bitmap = context.contentResolver.openInputStream(uri).use { input ->
         BitmapFactory.decodeStream(input)
     } ?: throw IllegalArgumentException("Fotoğraf okunamadı.")
 
