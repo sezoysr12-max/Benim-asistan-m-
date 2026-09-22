@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: benim-asistanim-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
