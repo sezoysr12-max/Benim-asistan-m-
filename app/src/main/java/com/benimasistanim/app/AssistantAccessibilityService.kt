@@ -105,16 +105,87 @@ class AssistantAccessibilityService : AccessibilityService() {
         startActivity(intent)
     }
 
+    private var lastStepAt = 0L
+    private var lastScreenSignature = ""
+
     private suspend fun automateListingStep(data: ListingData) {
+        val now = System.currentTimeMillis()
+        if (now - lastStepAt < 700) return
+
         val root = rootInActiveWindow ?: return
-        val titleDone = fillFirstMatching(
-            root,
-            listOf("İlan başlığı", "Başlık", "title"),
-            data.title
-        )
-        if (titleDone) AutomationBus.pendingListing = data.copy(title = data.title)
-        fillFirstMatching(root, listOf("Açıklama", "İlan açıklaması", "description"), data.description)
-        fillFirstMatching(root, listOf("Fiyat", "price"), data.price)
+        val signature = buildScreenSignature(root)
+        if (signature == lastScreenSignature && now - lastStepAt < 2500) return
+
+        lastStepAt = now
+        lastScreenSignature = signature
+
+        // Önce doğrudan düzenlenebilir alanları doldur.
+        var changed = false
+        changed = fillFirstEditable(root, listOf("İlan başlığı", "Başlık", "title"), data.title) || changed
+        changed = fillFirstEditable(root, listOf("Açıklama", "İlan açıklaması", "description"), data.description) || changed
+        changed = fillFirstEditable(root, listOf("Fiyat", "price"), data.price) || changed
+
+        // Sahibinden farklı sürümlerde alan etiketi değişebildiği için
+        // içerik açıklamasından da alan bulmayı dene.
+        if (!changed) {
+            fillFirstMatching(root, listOf("İlan başlığı", "Başlık", "title"), data.title)
+            fillFirstMatching(root, listOf("Açıklama", "İlan açıklaması", "description"), data.description)
+            fillFirstMatching(root, listOf("Fiyat", "price"), data.price)
+        }
+
+        // İleri/devam butonu görünüyorsa yalnızca ilan akışında tıklamayı dene.
+        clickFirstMatching(root, listOf("Devam", "İleri", "Kaydet ve devam et", "Devam et"))
+    }
+
+    private fun fillFirstEditable(
+        root: AccessibilityNodeInfo,
+        labels: List<String>,
+        value: String
+    ): Boolean {
+        val node = findNode(root, labels) ?: return false
+        if (!node.isEditable) return false
+        val args = Bundle().apply {
+            putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                value
+            )
+        }
+        return node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+    }
+
+    private fun clickFirstMatching(
+        root: AccessibilityNodeInfo,
+        labels: List<String>
+    ): Boolean {
+        for (label in labels) {
+            val nodes = root.findAccessibilityNodeInfosByText(label)
+            val target = nodes.firstOrNull { it.isClickable } ?: nodes.firstOrNull()
+            if (target != null) {
+                var node: AccessibilityNodeInfo? = target
+                while (node != null) {
+                    if (node.isClickable && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                        return true
+                    }
+                    node = node.parent
+                }
+            }
+        }
+        return false
+    }
+
+    private fun buildScreenSignature(root: AccessibilityNodeInfo): String {
+        val values = mutableListOf<String>()
+        collectText(root, values, 0)
+        return values.take(80).joinToString("|")
+    }
+
+    private fun collectText(node: AccessibilityNodeInfo, values: MutableList<String>, depth: Int) {
+        if (depth > 8 || values.size >= 100) return
+        node.text?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { values.add(it) }
+        node.contentDescription?.toString()?.trim()?.takeIf { it.isNotEmpty() }?.let { values.add(it) }
+        for (i in 0 until node.childCount) {
+            node.getChild(i)?.let { collectText(it, values, depth + 1) }
+        }
     }
 
     private fun fillFirstMatching(
