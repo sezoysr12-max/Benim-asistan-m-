@@ -26,6 +26,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
 
 private const val SERVER_URL = "https://benim-asistan-m.onrender.com/api/listing/draft"
 
@@ -134,12 +135,20 @@ private suspend fun createListingDraft(context: Context, uri: Uri): JSONObject =
         .put("imageDataUrl", "data:image/jpeg;base64,$base64")
         .put("product", "Fotoğraftaki ürünü analiz et.")
 
+    val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
+        .callTimeout(240, TimeUnit.SECONDS)
+        .build()
+
     val request = Request.Builder()
         .url(SERVER_URL)
+        .header("Accept", "application/json")
         .post(body.toString().toRequestBody("application/json".toMediaType()))
         .build()
 
-    OkHttpClient().newCall(request).execute().use { response ->
+    client.newCall(request).execute().use { response ->
         val text = response.body?.string().orEmpty()
         if (!response.isSuccessful) {
             val message = try { JSONObject(text).optString("error") } catch (_: Exception) { "" }
