@@ -25,7 +25,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 
-private const val SERVER_URL = "https://SUNUCU-ADRESIN-BURAYA/api/listing/draft"
+private const val SERVER_URL = "https://benim-asistan-m.onrender.com/api/listing/draft"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
