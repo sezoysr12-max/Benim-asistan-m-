@@ -77,6 +77,21 @@ class AssistantAccessibilityService : AccessibilityService() {
     }
 
     fun startSahibindenListing() {
+        val data = AutomationBus.pendingListing
+        if (data?.imageUri != null) {
+            try {
+                val share = Intent(Intent.ACTION_SEND).apply {
+                    type = "image/*"
+                    putExtra(Intent.EXTRA_STREAM, data.imageUri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    setPackage("com.sahibinden")
+                }
+                startActivity(share)
+                return
+            } catch (_: Exception) {
+                // Sahibinden sürümü paylaşım hedefini desteklemiyorsa normal uygulama açılışına düş.
+            }
+        }
         launchPackage("com.sahibinden")
     }
 
