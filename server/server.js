@@ -13,7 +13,7 @@ app.post("/api/listing/draft", async (req, res) => {
     if (!imageDataUrl) return res.status(400).json({ error: "imageDataUrl gerekli" });
 
     const response = await client.responses.create({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       tools: [{ type: "web_search_preview" }],
       input: [{
         role: "user",
